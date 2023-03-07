@@ -144,6 +144,11 @@ namespace Cadenza_sPlugin
             //Skills
             yield return AccessTools.Method(typeof(KongFuDetailController), "SkillUI");
             yield return AccessTools.Method(typeof(KongFuDetailController), "Start");
+            //Load-Save-Log
+            yield return AccessTools.Method(typeof(LoadController), "ReadFileASync");
+            yield return AccessTools.Method(typeof(LogViewController), "Start");
+            yield return AccessTools.Method(typeof(SaveController), "UpdateDisplay");
+
         }
         static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
         {
