@@ -15,6 +15,8 @@ using System.Reflection;
 using UnityEngine.SceneManagement;
 using System.Reflection.Emit;
 using UnityEngine.Experimental.PlayerLoop;
+using System.IO;
+using UnityEngine.UI;
 
 namespace Cadenza_sPlugin
 {
@@ -28,6 +30,7 @@ namespace Cadenza_sPlugin
         public static string sourceDir = BepInEx.Paths.PluginPath;
         static public Dictionary<string, string> translationDict = new Dictionary<string, string>();
         static public Dictionary<string, string> TADict = new Dictionary<string, string>();
+        static public Dictionary<string, string> newTADict = new Dictionary<string, string>();
         static public Dictionary<string, string> HardcodedDict = new Dictionary<string, string>();
         private void Awake()
         {
@@ -43,14 +46,30 @@ namespace Cadenza_sPlugin
         }
         private void Update()
         {
-
+            if(Input.GetKeyDown(KeyCode.F1))
+            {
+                PurgeTADict();
+            }
             
+        }
+        public void PurgeTADict()
+        {
+            var newresultDictfile = Path.Combine(BepInEx.Paths.PluginPath, "NewTA.txt");
+            using (StreamWriter sw = new StreamWriter(newresultDictfile, append: true))
+            {
+
+          
+            foreach (var kvp in newTADict)
+            {
+                    sw.Write(kvp.Key + "¤" + kvp.Value + Environment.NewLine);
+            }
+            }
         }
     }
     [HarmonyPatch(typeof(CsvParser2), "Parse", new Type[] {typeof(string)})]
     static class Patch00
     {
-        static void Postfix(string[][] __result)
+        static void Postfix(string[][] __result, ref string input)
         {
             if(__result != null)
             { 
@@ -61,11 +80,13 @@ namespace Cadenza_sPlugin
                         var value = __result[i][j];
                         if(value != null)
                         { 
-                            if(Helpers.IsChinese(value) || value.Contains("\\u"))
+                            if(Helpers.IsChinese(value) && !input.Contains("[\\s\\S]{0,3}郎)") || value.Contains("\\u") && !input.Contains("[\\s\\S]{0,3}郎)"))
                             { 
                 __result[i][j] = Helpers.AddItemToList(__result[i][j], "TA", Main.TADict);
+
                             }
                         }
+                      
                     }
             }
             }
@@ -76,7 +97,7 @@ namespace Cadenza_sPlugin
 
 
     [HarmonyPatch(typeof(UnityEngine.UI.Text), "text", MethodType.Getter)]
-    static class Patch01
+    static class Patch_UnityEngine_UI_Text_text
     {
 
         static void Postfix(UnityEngine.UI.Text __instance, ref string __result)
@@ -89,12 +110,24 @@ namespace Cadenza_sPlugin
         }
     }
 
+    [HarmonyPatch(typeof(UnityEngine.UI.Text), "fontSize", MethodType.Getter)]
+    static class Patch_UnityEngine_UI_Text_fontSize
+    {
+
+        static void Postfix(UnityEngine.UI.Text __instance, ref int __result)
+        {
+            __result = __result - 2;
+
+        }
+    }
+
     [HarmonyPatch]
 
     static class BattleControler_patch
     {
         static IEnumerable<MethodBase> TargetMethods()
         {
+            
             //Battle UI
             yield return AccessTools.Method(typeof(BattleController), "UpdateBuffs");
             yield return AccessTools.Method(typeof(BattleController), "UpdateCharacterInfo");
@@ -111,6 +144,7 @@ namespace Cadenza_sPlugin
             yield return AccessTools.Method(typeof(BattleObject), "RunSkill");
             yield return AccessTools.Method(typeof(BattleObject), "RunTraitOne");
             yield return AccessTools.Method(typeof(BattleObject), "UseItemInBattle");
+
 
             //Map UI
             yield return AccessTools.Method(typeof(MapController), "DoAutoAction");
@@ -133,8 +167,7 @@ namespace Cadenza_sPlugin
             //StarterControllers
             yield return AccessTools.Method(typeof(Starter1Controller), "Start");
             yield return AccessTools.Method(typeof(Starter2Controller), "UpdateRightInfo");
-            yield return AccessTools.Method(typeof(Starter3Controller), "OnButtonUp");
-            yield return AccessTools.Method(typeof(Starter3Controller), "OnButtonUp");
+            //yield return AccessTools.Method(typeof(Starter3Controller), "OnButtonUp");
             //StatusControllers
             yield return AccessTools.Method(typeof(Status1Controller), "Start");
             yield return AccessTools.Method(typeof(Status2Controller), "Start");
@@ -146,8 +179,16 @@ namespace Cadenza_sPlugin
             yield return AccessTools.Method(typeof(KongFuDetailController), "Start");
             //Load-Save-Log
             yield return AccessTools.Method(typeof(LoadController), "ReadFileASync");
+            yield return AccessTools.Method(typeof(LoadController), "ReadFileASync");
             yield return AccessTools.Method(typeof(LogViewController), "Start");
             yield return AccessTools.Method(typeof(SaveController), "UpdateDisplay");
+            //SharedData
+            yield return AccessTools.Method(typeof(SharedData), "FormatDynamicText");
+            yield return AccessTools.Method(typeof(SharedData), "Translate2Hanzi");
+            //Leveling
+            yield return AccessTools.Method(typeof(LevelUpController), "Start");
+            yield return AccessTools.Method(typeof(LevelUpSkillController), "Start");
+
 
         }
         static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
@@ -175,7 +216,14 @@ namespace Cadenza_sPlugin
 
         }
     }
-
+    [HarmonyPatch(typeof(InputField), "characterLimit", MethodType.Getter)]
+    static class Patch_InputField
+    {
+        static void Postfix(ref int __result)
+        {
+            __result = __result + 5;
+        }
+    }
     public static class Helpers
     {
         public static Dictionary<string, string> FileToDictionary(string dir)
@@ -234,7 +282,12 @@ namespace Cadenza_sPlugin
             if (dict.ContainsKey(Helpers.CustomEscape(str)))
             {
                 Main.log.LogInfo("Found Match : " + Helpers.CustomUnescape(dict[Helpers.CustomEscape(str)]));
+                if (dict == Main.TADict && !Main.newTADict.ContainsKey(Helpers.CustomEscape(str)))
+                {
+                    Main.newTADict.Add(str, Helpers.CustomUnescape(dict[Helpers.CustomEscape(str)]));
+                }
                 return Helpers.CustomUnescape(dict[Helpers.CustomEscape(str)]);
+
             }
             else
             {
