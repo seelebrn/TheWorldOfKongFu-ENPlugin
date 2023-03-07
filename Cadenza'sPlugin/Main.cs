@@ -110,16 +110,11 @@ namespace Cadenza_sPlugin
         }
     }
 
-    [HarmonyPatch(typeof(UnityEngine.UI.Text), "fontSize", MethodType.Getter)]
+    /*[HarmonyPatch(typeof(UnityEngine.UI.Text), "fontSize", MethodType.Getter)]
     static class Patch_UnityEngine_UI_Text_fontSize
     {
 
-        static void Postfix(UnityEngine.UI.Text __instance, ref int __result)
-        {
-            __result = __result - 2;
-
-        }
-    }
+    }*/
 
     [HarmonyPatch]
 
